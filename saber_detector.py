@@ -1,3 +1,4 @@
+# This file is for "playing" Minecraft
 import cv2
 import imutils
 import numpy as np
