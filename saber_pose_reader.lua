@@ -1,36 +1,53 @@
 local is_saber_tracked = false
--- vs = ValveBiped skeleton
--- This motion tracking won't work with anything else
-local vs_wrist =  62
-
-
-
+--TODO: make this clean up the file
 
 concommand.Add( "gm_sabertracking", function( ply, cmd, arg )
-
-	if ( is_saber_tracked ) then
-		end_tracking()
-		return
-	end
-	
 	running = true
 	start_tracking(ply)
-	
-end )
+ end )
 
-function start_tracking(ply)
-	local handler = io.popen("python3 saber_pose_processor.py")
+function lastline(path)
+
+    local f = file.Open(path, "r", "DATA")
 	
-	while running do
-		local wrist_matrix = ply:getBoneMatrix(62)
-		-- idk if it's pitch, yaw, or roll yet
-		init_matrix:setAngles( Angle(0, handler:read("*a"), 0))
-	end
+	-- all angles will have 3 char max (for now)
+	-- e.g. -90 vs 090
+	-- so this is a good approximation of EOF
+	local ang = f:ReadLine(f:Seek(f:Size()-3))
+	--print(ang)
+
+	--print( f:Tell() )
+
+    f:Close()
 	
-	handler:close()
-	
+	return tonumber(ang)
 end
 
-function end_tracking()
-	running = false
+function get_angle(filename)
+	local angle = lastline(filename)
+	if angle == nil then
+		return 90
+	end
+	return tonumber(angle)
+end
+
+function start_tracking(ply)
+	print("\nPlayer: " .. ply:AccountID())
+
+	local prevangle = get_angle("test/tracking.txt")
+
+	print("\nPreviously read angle: " .. tostring(prevangle))
+
+	print("\nHand angles: " .. tostring(ply:GetManipulateBoneAngles(11)))
+	
+	angle = get_angle("test/tracking.txt")
+	ply:ManipulateBoneAngles(11, Angle(0, 0, angle-90))
+	
+	print("\nNewly read angle: " .. angle)
+	
+	prevangle = angle
+	
+	print()
+	print("Angles after update: ")
+	print(ply:GetManipulateBoneAngles(11))
 end
