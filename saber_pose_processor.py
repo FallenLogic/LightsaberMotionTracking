@@ -1,5 +1,4 @@
 import math
-import sys
 import cv2
 import imutils
 import mediapipe as mp
@@ -7,6 +6,11 @@ import time
 
 import numpy as np
 from cv2 import flip, blur
+
+from pynput.keyboard import Key, Controller
+import win32gui
+
+keyboard = Controller()
 
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
@@ -24,6 +28,22 @@ upper = np.array([60, 255, 255])
 
 center = (0, 0)
 
+
+def generate_bone_matrix(angle):
+    # This path is obviously specific to my computer
+    f = open("C:/Program Files (x86)/Steam/steamapps/common/GarrysMod/garrysmod/data/test/tracking.txt", "a")
+    if angle > 0:
+        f.write("\n0" + str(angle))
+    else:
+        f.write("\n" + str(180-abs(angle)))
+    f.close()
+    # Button press here signals to the game that data can be read
+    hwnd = win32gui.GetForegroundWindow()
+    if win32gui.GetWindowText(hwnd) == "Garry's Mod":
+        keyboard.press('1')
+        keyboard.release('1')
+
+
 with mp_pose.Pose(
         min_detection_confidence=0.5,
         min_tracking_confidence=0.5) as pose:
@@ -31,7 +51,6 @@ with mp_pose.Pose(
         success, image = cap.read()
         if not success:
             print("Ignoring empty camera frame.")
-            # If loading a video, use 'break' instead of 'continue'.
             continue
 
         # Convert the BGR image to RGB.
@@ -65,6 +84,8 @@ with mp_pose.Pose(
 
         width = image.shape[0]
         height = image.shape[1]
+        # arbitrary scaling factor because images have no depth
+        # depth = 4
 
         if len(cnts) > 0:
             # find the largest contour in the mask, then use
@@ -89,8 +110,8 @@ with mp_pose.Pose(
 
             wrist_bone = results.pose_landmarks.landmark[15]
 
-            print("x: {0}".format(image.shape[1]))
-            print("y: {0}".format(image.shape[0]))
+            # print("x: {0}".format(image.shape[1]))
+            # print("y: {0}".format(image.shape[0]))
 
             x1 = int(wrist_bone.x * image.shape[1])
             y1 = int(wrist_bone.y * image.shape[0])
@@ -100,23 +121,25 @@ with mp_pose.Pose(
 
             # misnomer because x3 is for the Z-axis, normalized against the depth of the image
             # y3 is just y1 because the height of the landmark doesn't change
-            x3 = int(wrist_bone.z*depth)
+            # x3 = int(wrist_bone.z*depth)
             y3 = y1
 
-            sys.stdout.write("Wrist x {0} y {0} \n".format(wrist_bone.x * width,
-                                                           wrist_bone.y * height))
-            sys.stdout.write("Saber center x {0} y {0}\n".format(center[0], center[1]))
+            # sys.stdout.write("Wrist x {0} y {0} \n".format(wrist_bone.x * width,
+            #                                                wrist_bone.y * height))
+            # sys.stdout.write("Saber center x {0} y {0}\n".format(center[0], center[1]))
             cv2.line(image, (x1, y1), (x2, y2), (255, 140, 0), 2)
 
             # the next loc isn't strictly necessary, it just displays a line on screen that
             # helps intuitively show the angle
             cv2.line(image, (x1, y1), (image.shape[0], y1), (100, 100, 100, 100), 2)
 
-            if x2-x1 != 0:
-                theta_xy = -1*int(math.atan((y1 - y2) / (x2 - x1)) * 180 / math.pi)
-                theta_xz = -1*int(math.atan((y1 - y2) / (x2 - x1)) * 180 / math.pi)
-            sys.stdout.write(" (LR) XY Angle: " + str(theta_xy) + "\n")
-            sys.stdout.write(" (FB) XZ Angle: " + str(z1) + "\n")
+            if x2 - x1 != 0:
+                theta_xy = int(math.atan((y2 - y1) / (x2 - x1)) * 180 / math.pi)
+                theta_xz = int(math.atan((y2 - y1) / (x2 - x1)) * 180 / math.pi)
+                cv2.putText(image, "XY Angle {0}".format(theta_xy), (20, 130), cv2.FONT_HERSHEY_SIMPLEX, 1,
+                            (255, 255, 255), 2)
+            generate_bone_matrix(theta_xy)
+            # sys.stdout.write(" (FB) XZ Angle: " + str(z1) + "\n")
         cv2.imshow('Player pose & saber transforms', image)
 
         # The ESC key
