@@ -10,7 +10,6 @@ void setup() {
 
 void loop() {
   if (Serial.available() > 0) {
-    //I know an int would make more sense. I don't care.
     String val = Serial.readString();
     if (val == "1") {
       myServo.write(90);
